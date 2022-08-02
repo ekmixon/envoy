@@ -272,51 +272,100 @@ def test_checker_add_arguments():
     checker = DummyCheckerWithChecks("path1", "path2", "path3")
     parser = MagicMock()
     checker.add_arguments(parser)
-    assert (
-        list(list(c) for c in parser.add_argument.call_args_list)
-        == [[('--fix',),
-             {'action': 'store_true',
-              'default': False,
-              'help': 'Attempt to fix in place'}],
-            [('--diff',),
-             {'action': 'store_true',
-              'default': False,
-              'help': 'Display a diff in the console where available'}],
-            [('--warning', '-w'),
-             {'choices': ['warn', 'error'],
-              'default': 'warn',
-              'help': 'Handle warnings as warnings or errors'}],
-            [('--summary',),
-             {'action': 'store_true',
-              'default': False,
-              'help': 'Show a summary of check runs'}],
-            [('--summary-errors',),
-             {'type': int,
-              'default': 5,
-              'help': 'Number of errors to show in the summary, -1 shows all'}],
-            [('--summary-warnings',),
-             {'type': int,
-              'default': 5,
-              'help': 'Number of warnings to show in the summary, -1 shows all'}],
-            [('--check', '-c'),
-             {'choices': ("check1", "check2"),
-              'nargs': '*',
-              'help': 'Specify which checks to run, can be specified for multiple checks'}],
-            [('--config-check1',),
-             {'default': '',
-              'help': 'Custom configuration for the check1 check'}],
-            [('--config-check2',),
-             {'default': '',
-              'help': 'Custom configuration for the check2 check'}],
-            [('--path', '-p'),
-             {'default': None,
-              'help': 'Path to the test root (usually Envoy source dir). If not specified the first path of paths is used'}],
-            [('--log-level', '-l'),
-             {'choices': ['info', 'warn', 'debug', 'error'],
-              'default': 'info', 'help': 'Log level to display'}],
-            [('paths',),
-             {'nargs': '*',
-              'help': 'Paths to check. At least one path must be specified, or the `path` argument should be provided'}]])
+    assert [list(c) for c in parser.add_argument.call_args_list] == [
+        [
+            ('--fix',),
+            {
+                'action': 'store_true',
+                'default': False,
+                'help': 'Attempt to fix in place',
+            },
+        ],
+        [
+            ('--diff',),
+            {
+                'action': 'store_true',
+                'default': False,
+                'help': 'Display a diff in the console where available',
+            },
+        ],
+        [
+            ('--warning', '-w'),
+            {
+                'choices': ['warn', 'error'],
+                'default': 'warn',
+                'help': 'Handle warnings as warnings or errors',
+            },
+        ],
+        [
+            ('--summary',),
+            {
+                'action': 'store_true',
+                'default': False,
+                'help': 'Show a summary of check runs',
+            },
+        ],
+        [
+            ('--summary-errors',),
+            {
+                'type': int,
+                'default': 5,
+                'help': 'Number of errors to show in the summary, -1 shows all',
+            },
+        ],
+        [
+            ('--summary-warnings',),
+            {
+                'type': int,
+                'default': 5,
+                'help': 'Number of warnings to show in the summary, -1 shows all',
+            },
+        ],
+        [
+            ('--check', '-c'),
+            {
+                'choices': ("check1", "check2"),
+                'nargs': '*',
+                'help': 'Specify which checks to run, can be specified for multiple checks',
+            },
+        ],
+        [
+            ('--config-check1',),
+            {
+                'default': '',
+                'help': 'Custom configuration for the check1 check',
+            },
+        ],
+        [
+            ('--config-check2',),
+            {
+                'default': '',
+                'help': 'Custom configuration for the check2 check',
+            },
+        ],
+        [
+            ('--path', '-p'),
+            {
+                'default': None,
+                'help': 'Path to the test root (usually Envoy source dir). If not specified the first path of paths is used',
+            },
+        ],
+        [
+            ('--log-level', '-l'),
+            {
+                'choices': ['info', 'warn', 'debug', 'error'],
+                'default': 'info',
+                'help': 'Log level to display',
+            },
+        ],
+        [
+            ('paths',),
+            {
+                'nargs': '*',
+                'help': 'Paths to check. At least one path must be specified, or the `path` argument should be provided',
+            },
+        ],
+    ]
 
 
 TEST_ERRORS = (
@@ -434,10 +483,11 @@ def test_checker_run(patches):
     assert (
         list(m_complete.call_args)
         == [(), {}])
-    assert (
-        list(list(c) for c in m_log.return_value.info.call_args_list)
-        == [[(f"[CHECKS:{m_name.return_value}] check1",), {}],
-            [(f"[CHECKS:{m_name.return_value}] check2",), {}]])
+    assert [list(c) for c in m_log.return_value.info.call_args_list] == [
+        [(f"[CHECKS:{m_name.return_value}] check1",), {}],
+        [(f"[CHECKS:{m_name.return_value}] check2",), {}],
+    ]
+
     assert (
         list(checker.check1.call_args)
         == [(), {}])
@@ -544,9 +594,11 @@ def test_checker_summary_print_summary(patches):
 
     with patched as (m_failed, m_status):
         summary.print_summary()
-    assert (
-        list(list(c) for c in m_failed.call_args_list)
-        == [[('warnings',), {}], [('errors',), {}]])
+    assert [list(c) for c in m_failed.call_args_list] == [
+        [('warnings',), {}],
+        [('errors',), {}],
+    ]
+
     assert m_status.called
 
 
@@ -635,9 +687,7 @@ def test_checker_summary_print_failed(patches, problem_type, max_display, proble
         expected = [
             [(f"[{problem_type.upper()}:{summary.checker.name}] {prob}{_extra(prob)}", _problems(prob)), {}]
             for prob in problems]
-    assert (
-        list(list(c) for c in m_section.call_args_list)
-        == expected)
+    assert [list(c) for c in m_section.call_args_list] == expected
 
 
 # ForkingChecker test

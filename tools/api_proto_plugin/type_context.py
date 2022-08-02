@@ -58,9 +58,15 @@ class SourceCodeInfo(object):
         if self._file_level_annotations:
             return self._file_level_annotations
         self._file_level_annotations = dict(
-            sum([
-                list(annotations.extract_annotations(c).items()) for c in self.file_level_comments
-            ], []))
+            sum(
+                (
+                    list(annotations.extract_annotations(c).items())
+                    for c in self.file_level_comments
+                ),
+                [],
+            )
+        )
+
         return self._file_level_annotations
 
     def location_path_lookup(self, path):
@@ -118,9 +124,7 @@ class SourceCodeInfo(object):
             Raw detached comment string
         """
         location = self.location_path_lookup(path)
-        if location is not None:
-            return location.trailing_comments
-        return ''
+        return location.trailing_comments if location is not None else ''
 
 
 class TypeContext(object):
@@ -154,10 +158,7 @@ class TypeContext(object):
         self.deprecated = False
 
     def _extend(self, path, type_name, name, deprecated=False):
-        if not self.name:
-            extended_name = name
-        else:
-            extended_name = '%s.%s' % (self.name, name)
+        extended_name = f'{self.name}.{name}' if self.name else name
         extended = TypeContext(self.source_code_info, extended_name)
         extended.path = self.path + path
         extended.type_name = type_name

@@ -116,14 +116,23 @@ def test_python_add_arguments(patches):
     assert (
         list(m_add.call_args)
         == [(m_parser,), {}])
-    assert (
-        list(list(c) for c in m_parser.add_argument.call_args_list)
-        == [[('--recurse', '-r'),
-             {'choices': ['yes', 'no'],
-              'default': 'yes',
-              'help': 'Recurse path or paths directories'}],
-            [('--diff-file',),
-             {'default': None, 'help': 'Specify the path to a diff file with fixes'}]])
+    assert [list(c) for c in m_parser.add_argument.call_args_list] == [
+        [
+            ('--recurse', '-r'),
+            {
+                'choices': ['yes', 'no'],
+                'default': 'yes',
+                'help': 'Recurse path or paths directories',
+            },
+        ],
+        [
+            ('--diff-file',),
+            {
+                'default': None,
+                'help': 'Specify the path to a diff file with fixes',
+            },
+        ],
+    ]
 
 
 @pytest.mark.parametrize("errors", [[], ["err1", "err2"]])
@@ -186,12 +195,12 @@ def test_python_check_yapf(patches):
         m_yapf_files.return_value = ["file1", "file2", "file3"]
         checker.check_yapf()
 
-    assert (
-        list(list(c) for c in m_yapf_files.call_args_list)
-        == [[(), {}]])
-    assert (
-        list(list(c) for c in m_yapf_run.call_args_list)
-        == [[('file1',), {}], [('file2',), {}], [('file3',), {}]])
+    assert [list(c) for c in m_yapf_files.call_args_list] == [[(), {}]]
+    assert [list(c) for c in m_yapf_run.call_args_list] == [
+        [('file1',), {}],
+        [('file2',), {}],
+        [('file3',), {}],
+    ]
 
 
 TEST_CHECK_RESULTS = (
@@ -288,9 +297,7 @@ def test_python_yapf_format(patches, fix):
             {'style_config': m_config.return_value,
              'in_place': fix,
              'print_diff': not fix}])
-    assert (
-        list(list(c) for c in m_fix.call_args_list)
-        == [[(), {}], [(), {}]])
+    assert [list(c) for c in m_fix.call_args_list] == [[(), {}], [(), {}]]
 
 
 TEST_FORMAT_RESULTS = (
@@ -330,9 +337,7 @@ def test_python_yapf_run(patches, fix, format_results):
     if fix:
         assert not m_error.called
         assert len(m_warn.call_args_list) == 1
-        assert (
-            list(m_warn.call_args)
-            == [('yapf', [f'FILENAME: reformatted']), {}])
+        assert list(m_warn.call_args) == [('yapf', ['FILENAME: reformatted']), {}]
         return
     if reformat:
         assert not m_error.called
@@ -357,9 +362,11 @@ def test_python_strip_lines():
             checker._strip_lines(lines)
             == [m_strip.return_value] * 3)
 
-    assert (
-        list(list(c) for c in m_strip.call_args_list)
-        == [[('foo',), {}], [('bar',), {}], [('baz',), {}]])
+    assert [list(c) for c in m_strip.call_args_list] == [
+        [('foo',), {}],
+        [('bar',), {}],
+        [('baz',), {}],
+    ]
 
 
 @pytest.mark.parametrize("line", ["REMOVE/foo", "REMOVE", "bar", "other", "REMOVE/baz", "baz"])

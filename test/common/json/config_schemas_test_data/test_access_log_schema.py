@@ -44,11 +44,12 @@ ACCESS_LOG_BLOB = {
 def test(writer):
     for idx, item in enumerate(ACCESS_LOG_BLOB["access_log"]):
         writer.write_test_file(
-            'Valid_idx_' + str(idx),
+            f'Valid_idx_{str(idx)}',
             schema='ACCESS_LOG_SCHEMA',
             data=get_blob(item),
             throws=False,
         )
+
 
     blob = get_blob(ACCESS_LOG_BLOB)['access_log'][1]
     blob['filter']['filters'][0]['op'] = '<'

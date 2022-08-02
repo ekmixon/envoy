@@ -204,11 +204,11 @@ def indent_lines(spaces, lines):
 
 
 def format_internal_link(text, ref):
-    return ':ref:`%s <%s>`' % (text, ref)
+    return f':ref:`{text} <{ref}>`'
 
 
 def format_external_link(text, ref):
-    return '`%s <%s>`_' % (text, ref)
+    return f'`{text} <{ref}>`_'
 
 
 def format_header(style, text):
@@ -307,9 +307,7 @@ def format_field_type_as_json(type_context, field):
         return '"{...}"'
     if field.label == field.LABEL_REPEATED:
         return '[]'
-    if field.type == field.TYPE_MESSAGE:
-        return '"{...}"'
-    return '"..."'
+    return '"{...}"' if field.type == field.TYPE_MESSAGE else '"..."'
 
 
 def format_message_as_json(type_context, msg):
@@ -366,7 +364,7 @@ def normalize_type_context_name(type_name):
 
 
 def qualify_type_name(type_name):
-    return '.' + type_name
+    return f'.{type_name}'
 
 
 def type_name_from_fqn(fqn):
@@ -400,13 +398,17 @@ def format_field_type(type_context, field):
     elif field.type_name.startswith(WKT_NAMESPACE_PREFIX):
         wkt = field.type_name[len(WKT_NAMESPACE_PREFIX):]
         return format_external_link(
-            wkt, 'https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#%s'
-            % wkt.lower())
+            wkt,
+            f'https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#{wkt.lower()}',
+        )
+
     elif field.type_name.startswith(RPC_NAMESPACE_PREFIX):
         rpc = field.type_name[len(RPC_NAMESPACE_PREFIX):]
         return format_external_link(
-            rpc, 'https://cloud.google.com/natural-language/docs/reference/rpc/google.rpc#%s'
-            % rpc.lower())
+            rpc,
+            f'https://cloud.google.com/natural-language/docs/reference/rpc/google.rpc#{rpc.lower()}',
+        )
+
     elif field.type_name:
         return field.type_name
 
@@ -431,7 +433,7 @@ def format_field_type(type_context, field):
         return format_external_link(
             pretty_type_names[field.type],
             'https://developers.google.com/protocol-buffers/docs/proto#scalar')
-    raise ProtodocError('Unknown field type ' + str(field.type))
+    raise ProtodocError(f'Unknown field type {str(field.type)}')
 
 
 def strip_leading_space(s):
@@ -441,27 +443,27 @@ def strip_leading_space(s):
 
 def file_cross_ref_label(msg_name):
     """File cross reference label."""
-    return 'envoy_v3_api_file_%s' % msg_name
+    return f'envoy_v3_api_file_{msg_name}'
 
 
 def message_cross_ref_label(msg_name):
     """Message cross reference label."""
-    return 'envoy_v3_api_msg_%s' % msg_name
+    return f'envoy_v3_api_msg_{msg_name}'
 
 
 def enum_cross_ref_label(enum_name):
     """Enum cross reference label."""
-    return 'envoy_v3_api_enum_%s' % enum_name
+    return f'envoy_v3_api_enum_{enum_name}'
 
 
 def field_cross_ref_label(field_name):
     """Field cross reference label."""
-    return 'envoy_v3_api_field_%s' % field_name
+    return f'envoy_v3_api_field_{field_name}'
 
 
 def enum_value_cross_ref_label(enum_value_name):
     """Enum value cross reference label."""
-    return 'envoy_v3_api_enum_value_%s' % enum_value_name
+    return f'envoy_v3_api_enum_value_{enum_value_name}'
 
 
 def format_anchor(label):
@@ -553,12 +555,14 @@ def format_field_as_definition_list_item(
 
     # If there is a udpa.annotations.security option, include it after the comment.
     if field.options.HasExtension(security_pb2.security):
-        manifest_description = protodoc_manifest.fields.get(type_context.name)
-        if not manifest_description:
-            raise ProtodocError('Missing protodoc manifest YAML for %s' % type_context.name)
-        formatted_security_options = format_security_options(
-            field.options.Extensions[security_pb2.security], field, type_context,
-            manifest_description.edge_config)
+        if manifest_description := protodoc_manifest.fields.get(
+            type_context.name
+        ):
+            formatted_security_options = format_security_options(
+                field.options.Extensions[security_pb2.security], field, type_context,
+                manifest_description.edge_config)
+        else:
+            raise ProtodocError(f'Missing protodoc manifest YAML for {type_context.name}')
     else:
         formatted_security_options = ''
     pretty_label_names = {
@@ -671,7 +675,7 @@ class RstFormatVisitor(visitor.Visitor):
     def visit_enum(self, enum_proto, type_context):
         normal_enum_type = normalize_type_context_name(type_context.name)
         anchor = format_anchor(enum_cross_ref_label(normal_enum_type))
-        header = format_header('-', 'Enum %s' % normal_enum_type)
+        header = format_header('-', f'Enum {normal_enum_type}')
         proto_link = github_url("f[{normal_enum_type} proto]", type_context) + '\n\n'
         leading_comment = type_context.leading_comment
         formatted_leading_comment = format_comment_with_annotations(leading_comment, 'enum')
@@ -699,9 +703,9 @@ class RstFormatVisitor(visitor.Visitor):
                 self.protodoc_manifest) + '\n'.join(nested_msgs) + '\n' + '\n'.join(nested_enums)
 
     def visit_file(self, file_proto, type_context, services, msgs, enums):
-        has_messages = True
-        if all(len(msg) == 0 for msg in msgs) and all(len(enum) == 0 for enum in enums):
-            has_messages = False
+        has_messages = any(len(msg) != 0 for msg in msgs) or any(
+            len(enum) != 0 for enum in enums
+        )
 
         v2_link = ""
         if file_proto.name in self.v2_mapping:
@@ -713,12 +717,16 @@ class RstFormatVisitor(visitor.Visitor):
         # TODO(mattklein123): The logic in both the doc and transform tool around files without messages
         # is confusing and should be cleaned up. This is a stop gap to have titles for all proto docs
         # in the common case.
-        if (has_messages and not annotations.DOC_TITLE_ANNOTATION
-                in type_context.source_code_info.file_level_annotations
-                and file_proto.name.startswith('envoy')):
+        if (
+            has_messages
+            and annotations.DOC_TITLE_ANNOTATION
+            not in type_context.source_code_info.file_level_annotations
+            and file_proto.name.startswith('envoy')
+        ):
             raise ProtodocError(
-                'Envoy API proto file missing [#protodoc-title:] annotation: {}'.format(
-                    file_proto.name))
+                f'Envoy API proto file missing [#protodoc-title:] annotation: {file_proto.name}'
+            )
+
 
         # Find the earliest detached comment, attribute it to file level.
         # Also extract file level titles if any.
@@ -730,11 +738,15 @@ class RstFormatVisitor(visitor.Visitor):
         if not has_messages:
             header = ':orphan:\n\n' + header
         warnings = ''
-        if file_proto.options.HasExtension(status_pb2.file_status):
-            if file_proto.options.Extensions[status_pb2.file_status].work_in_progress:
-                warnings += (
-                    '.. warning::\n   This API is work-in-progress and is '
-                    'subject to breaking changes.\n\n')
+        if (
+            file_proto.options.HasExtension(status_pb2.file_status)
+            and file_proto.options.Extensions[
+                status_pb2.file_status
+            ].work_in_progress
+        ):
+            warnings += (
+                '.. warning::\n   This API is work-in-progress and is '
+                'subject to breaking changes.\n\n')
         # debug_proto = format_proto_as_block_comment(file_proto)
         return header + warnings + comment + '\n'.join(msgs) + '\n'.join(enums)  # + debug_proto
 

@@ -87,10 +87,11 @@ def test_pip_checker_requirements_dirs(patches):
 
 TEST_REQS = (
     (set(), set()),
-    (set(["A", "B"]), set()),
-    (set(["A", "B"]), set(["B", "C"])),
-    (set(["A", "B", "C"]), set(["A", "B", "C"])),
-    (set(), set(["B", "C"])))
+    ({"A", "B"}, set()),
+    ({"A", "B"}, {"B", "C"}),
+    ({"A", "B", "C"}, {"A", "B", "C"}),
+    (set(), {"B", "C"}),
+)
 
 
 @pytest.mark.parametrize("requirements", TEST_REQS)
@@ -119,14 +120,24 @@ def test_pip_checker_check_dependabot(patches, requirements):
         assert not m_success.called
 
     if config - dirs:
-        assert (
-            [(config - dirs, f"Missing {m_fname.return_value} dir, specified in dependabot config"), {}]
-            in list(list(c) for c in m_errors.call_args_list))
+        assert [
+            (
+                config - dirs,
+                f"Missing {m_fname.return_value} dir, specified in dependabot config",
+            ),
+            {},
+        ] in [list(c) for c in m_errors.call_args_list]
+
 
     if dirs - config:
-        assert (
-            [(dirs - config, f"Missing dependabot config for {m_fname.return_value} in dir"), {}]
-            in list(list(c) for c in m_errors.call_args_list))
+        assert [
+            (
+                dirs - config,
+                f"Missing dependabot config for {m_fname.return_value} in dir",
+            ),
+            {},
+        ] in [list(c) for c in m_errors.call_args_list]
+
 
     if not config - dirs and not dirs - config:
         assert not m_errors.called
@@ -135,7 +146,7 @@ def test_pip_checker_check_dependabot(patches, requirements):
 def test_pip_checker_dependabot_success(patches):
     checker = pip_check.PipChecker("path1", "path2", "path3")
     succeed_mock = patch
-    success = set(["C", "D", "B", "A"])
+    success = {"C", "D", "B", "A"}
 
     patched = patches(
         "PipChecker.succeed",
@@ -157,7 +168,7 @@ def test_pip_checker_dependabot_success(patches):
 def test_pip_checker_dependabot_errors(patches):
     checker = pip_check.PipChecker("path1", "path2", "path3")
     succeed_mock = patch
-    errors = set(["C", "D", "B", "A"])
+    errors = {"C", "D", "B", "A"}
     MSG = "ERROR MESSAGE"
 
     patched = patches(

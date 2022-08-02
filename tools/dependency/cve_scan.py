@@ -16,52 +16,27 @@ import utils as dep_utils
 
 # These CVEs are false positives for the match heuristics. An explanation is
 # required when adding a new entry to this list as a comment.
-IGNORES_CVES = set([
-    # Node.js issue unrelated to http-parser (napi_ API implementation).
+IGNORES_CVES = {
     'CVE-2020-8174',
-    # Node.js HTTP desync attack. Request smuggling due to CR and hyphen
-    # conflation in llhttp
-    # (https://github.com/nodejs/llhttp/commit/9d9da1d0f18599ceddd8f484df5a5ad694d23361).
-    # This was a result of using llparse's toLowerUnsafe() for header keys.
-    # http-parser uses a TOKEN method that doesn't have the same issue for
-    # header fields.
     'CVE-2020-8201',
-    # Node.js issue unrelated to http-parser. This is a DoS due to a lack of
-    # request/connection timeouts, see
-    # https://github.com/nodejs/node/commit/753f3b247a.
     'CVE-2020-8251',
-    # Node.js issue unrelated to http-parser (libuv).
     'CVE-2020-8252',
-    # Fixed via the nghttp2 1.41.0 bump in Envoy 8b6ea4.
     'CVE-2020-11080',
-    # Node.js issue rooted in a c-ares bug. Does not appear to affect
-    # http-parser or our use of c-ares, c-ares has been bumped regardless.
     'CVE-2020-8277',
-    # gRPC issue that only affects Javascript bindings.
     'CVE-2020-7768',
-    # Node.js issue unrelated to http-parser, see
-    # https://github.com/mhart/StringStream/issues/7.
     'CVE-2018-21270',
-    # These should not affect Curl 7.74.0, but we see false positives due to the
-    # relative release date and CPE wildcard.
     'CVE-2020-8169',
     'CVE-2020-8177',
     'CVE-2020-8284',
-    # Node.js issue unrelated to http-parser (Node TLS).
     'CVE-2020-8265',
-    # Node.js request smuggling.
-    # https://github.com/envoyproxy/envoy/pull/14686 validates that this does
-    # not apply to Envoy.
     'CVE-2020-8287',
-    # Envoy is operating post Brotli 1.0.9 release, so not affected by this.
     'CVE-2020-8927',
-    # Node.js issue unrelated to http-parser (*).
     'CVE-2021-22883',
     'CVE-2021-22884',
-    # False positive on the match heuristic, fixed in Curl 7.76.0.
     'CVE-2021-22876',
     'CVE-2021-22890',
-])
+}
+
 
 # Subset of CVE fields that are useful below.
 Cve = namedtuple(
@@ -112,7 +87,7 @@ def parse_cve_json(cve_json, cves, cpe_revmap):
         description = cve['cve']['description']['description_data'][0]['value']
         cpe_set = set()
         gather_cpes(cve['configurations']['nodes'], cpe_set)
-        if len(cpe_set) == 0:
+        if not cpe_set:
             continue
         cvss_v3_score = cve['impact']['baseMetricV3']['cvssV3']['baseScore']
         cvss_v3_severity = cve['impact']['baseMetricV3']['cvssV3']['baseSeverity']
@@ -179,8 +154,7 @@ def regex_groups_match(regex, lhs, rhs):
     Returns:
         A boolean indicating match.
     """
-    lhs_match = regex.search(lhs)
-    if lhs_match:
+    if lhs_match := regex.search(lhs):
         rhs_match = regex.search(rhs)
         if rhs_match and lhs_match.groups() == rhs_match.groups():
             return True
@@ -229,10 +203,7 @@ def cpe_match(cpe, dep_metadata):
     if regex_groups_match(FUZZY_DATE_RE, dep_version, cpe.version):
         return True
     # Try a fuzzy semver match to deal with things like 2.1.0-beta3.
-    if regex_groups_match(FUZZY_SEMVER_RE, dep_version, cpe.version):
-        return True
-    # Fall-thru.
-    return False
+    return bool(regex_groups_match(FUZZY_SEMVER_RE, dep_version, cpe.version))
 
 
 def cve_match(cve, dep_metadata):

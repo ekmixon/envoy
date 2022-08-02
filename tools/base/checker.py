@@ -33,7 +33,7 @@ class Checker(runner.Runner):
     @property
     def failed(self) -> dict:
         """Dictionary of errors per check"""
-        return dict((k, (len(v))) for k, v in self.errors.items())
+        return {k: (len(v)) for k, v in self.errors.items()}
 
     @property
     def fix(self) -> bool:
@@ -84,7 +84,7 @@ class Checker(runner.Runner):
     @property
     def succeeded(self) -> dict:
         """Dictionary of successful checks grouped by check type"""
-        return dict((k, (len(v))) for k, v in self.success.items())
+        return {k: (len(v)) for k, v in self.success.items()}
 
     @property
     def success_count(self) -> int:
@@ -104,7 +104,7 @@ class Checker(runner.Runner):
     @property
     def warned(self) -> dict:
         """Dictionary of warned checks grouped by check type"""
-        return dict((k, (len(v))) for k, v in self.warnings.items())
+        return {k: (len(v)) for k, v in self.warnings.items()}
 
     @property
     def warning_count(self) -> int:
@@ -178,8 +178,10 @@ class Checker(runner.Runner):
     def get_checks(self) -> Sequence[str]:
         """Get list of checks for this checker class filtered according to user args"""
         return (
-            self.checks if not self.args.check else
-            [check for check in self.args.check if check in self.checks])
+            [check for check in self.args.check if check in self.checks]
+            if self.args.check
+            else self.checks
+        )
 
     def on_check_run(self, check: str) -> None:
         """Callback hook called after each check run"""
@@ -252,8 +254,13 @@ class CheckerSummary(object):
             _msg = f"[{problem_type.upper()}:{self.checker.name}] {check}"
             _max = (min(len(problems), _max) if _max >= 0 else len(problems))
             msg = (
-                f"{_msg}: (showing first {_max} of {len(problems)})" if
-                (len(problems) > _max and _max > 0) else (f"{_msg}:" if _max != 0 else _msg))
+                f"{_msg}: (showing first {_max} of {len(problems)})"
+                if len(problems) > _max > 0
+                else f"{_msg}:"
+                if _max != 0
+                else _msg
+            )
+
             _out.extend(self._section(msg, problems[:_max]))
         if _out:
             self.checker.log.error("\n".join(_out))

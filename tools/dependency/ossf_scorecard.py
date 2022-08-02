@@ -97,10 +97,7 @@ def score(scorecard_path, repository_locations):
                 return _format('Signed-Releases')
             details = score['Details']
             release_found = details is not None and any('release found:' in d for d in details)
-            if release_found:
-                return 'True (10)'
-            else:
-                return 'False (10)'
+            return 'True (10)' if release_found else 'False (10)'
 
         results[results_key] = Scorecard(
             name=formatted_name,
@@ -129,8 +126,9 @@ def print_csv_results(csv_output_path, results):
 if __name__ == '__main__':
     if len(sys.argv) != 4:
         print(
-            'Usage: %s <path to repository_locations.bzl> <path to scorecard binary> <output CSV path>'
-            % sys.argv[0])
+            f'Usage: {sys.argv[0]} <path to repository_locations.bzl> <path to scorecard binary> <output CSV path>'
+        )
+
         sys.exit(1)
     access_token = os.getenv('GITHUB_AUTH_TOKEN')
     if not access_token:

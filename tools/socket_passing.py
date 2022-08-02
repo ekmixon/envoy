@@ -25,12 +25,12 @@ ADMIN_FILE_TIMEOUT_SECS = 20
 def generate_new_config(original_yaml, admin_address, updated_json):
     # Get original listener addresses
     with open(original_yaml, 'r') as original_file:
-        sys.stdout.write('Admin address is ' + admin_address + '\n')
+        sys.stdout.write(f'Admin address is {admin_address}' + '\n')
         try:
             admin_conn = http.client.HTTPConnection(admin_address)
             admin_conn.request('GET', '/listeners?format=json')
             admin_response = admin_conn.getresponse()
-            if not admin_response.status == 200:
+            if admin_response.status != 200:
                 return False
             discovered_listeners = json.loads(admin_response.read().decode('utf-8'))
         except Exception as e:
@@ -61,16 +61,27 @@ def generate_new_config(original_yaml, admin_address, updated_json):
                             raw_yaml[index + 1] = re.sub(
                                 'address:.*', 'address: "' + addr + '"', raw_yaml[index + 1])
                             raw_yaml[index + 2] = re.sub(
-                                'port_value:.*', 'port_value: ' + port, raw_yaml[index + 2])
+                                'port_value:.*',
+                                f'port_value: {port}',
+                                raw_yaml[index + 2],
+                            )
+
                             replaced = True
                             break
                 if replaced:
                     sys.stderr.write(
-                        'replaced listener at line ' + str(index) + ' with ' + str(discovered)
-                        + '\n')
+                        (
+                            f'replaced listener at line {str(index)} with {str(discovered)}'
+                            + '\n'
+                        )
+                    )
+
                 else:
                     sys.stderr.write(
-                        'Failed to replace a discovered listener ' + str(discovered) + '\n')
+                        f'Failed to replace a discovered listener {str(discovered)}'
+                        + '\n'
+                    )
+
                     return False
             with open(updated_json, 'w') as outfile:
                 outfile.writelines(raw_yaml)

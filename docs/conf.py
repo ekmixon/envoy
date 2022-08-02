@@ -76,21 +76,29 @@ extensions = [
     'powershell_lexer'
 ]
 extlinks = {
-    'repo': ('https://github.com/envoyproxy/envoy/blob/{}/%s'.format(blob_sha), ''),
-    'api': ('https://github.com/envoyproxy/envoy/blob/{}/api/%s'.format(blob_sha), ''),
+    'repo': (f'https://github.com/envoyproxy/envoy/blob/{blob_sha}/%s', ''),
+    'api': (f'https://github.com/envoyproxy/envoy/blob/{blob_sha}/api/%s', ''),
 }
+
 
 # Setup global substitutions
 if 'pre-release' in release_level:
     substitutions = [
-        ('|envoy_docker_image|', 'envoy-dev:{}'.format(blob_sha)),
-        ('|envoy_windows_docker_image|', 'envoy-windows-dev:{}'.format(blob_sha)),
-        ('|envoy_distroless_docker_image|', 'envoy-distroless-dev:{}'.format(blob_sha))
+        ('|envoy_docker_image|', f'envoy-dev:{blob_sha}'),
+        ('|envoy_windows_docker_image|', f'envoy-windows-dev:{blob_sha}'),
+        (
+            '|envoy_distroless_docker_image|',
+            f'envoy-distroless-dev:{blob_sha}',
+        ),
     ]
+
 else:
-    substitutions = [('|envoy_docker_image|', 'envoy:{}'.format(blob_sha)),
-                     ('|envoy_windows_docker_image|', 'envoy-windows:{}'.format(blob_sha)),
-                     ('|envoy_distroless_docker_image|', 'envoy-distroless:{}'.format(blob_sha))]
+    substitutions = [
+        ('|envoy_docker_image|', f'envoy:{blob_sha}'),
+        ('|envoy_windows_docker_image|', f'envoy-windows:{blob_sha}'),
+        ('|envoy_distroless_docker_image|', f'envoy-distroless:{blob_sha}'),
+    ]
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -111,7 +119,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'envoy'
-copyright = u'2016-{}, Envoy Project Authors'.format(datetime.now().year)
+copyright = f'2016-{datetime.now().year}, Envoy Project Authors'
 author = u'Envoy Project Authors'
 
 # The version info for the project you're documenting, acts as replacement for

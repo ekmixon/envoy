@@ -35,10 +35,11 @@ class PipChecker(checker.Checker):
     @cached_property
     def config_requirements(self) -> set:
         """Set of configured pip dependabot directories"""
-        return set(
+        return {
             update['directory']
             for update in self.dependabot_config["updates"]
-            if update["package-ecosystem"] == "pip")
+            if update["package-ecosystem"] == "pip"
+        }
 
     @cached_property
     def dependabot_config(self) -> dict:
@@ -53,10 +54,11 @@ class PipChecker(checker.Checker):
     @cached_property
     def requirements_dirs(self) -> set:
         """Set of found directories in the repo containing requirements.txt"""
-        return set(
-            root[len(self.path):]
+        return {
+            root[len(self.path) :]
             for root, dirs, files in os.walk(self.path)
-            if self.requirements_filename in files)
+            if self.requirements_filename in files
+        }
 
     @property
     def requirements_filename(self) -> str:
@@ -66,8 +68,9 @@ class PipChecker(checker.Checker):
         """Check that dependabot config matches requirements.txt files found in repo"""
         missing_dirs = self.config_requirements.difference(self.requirements_dirs)
         missing_config = self.requirements_dirs.difference(self.config_requirements)
-        correct = self.requirements_dirs.intersection(self.config_requirements)
-        if correct:
+        if correct := self.requirements_dirs.intersection(
+            self.config_requirements
+        ):
             self.dependabot_success(correct)
         if missing_dirs:
             self.dependabot_errors(

@@ -83,10 +83,11 @@ def test_runner_log(patches):
     assert (
         list(m_logger.return_value.setLevel.call_args)
         == [(m_level.return_value,), {}])
-    assert (
-        list(list(c) for c in m_stream.call_args_list)
-        == [[(sys.stdout,), {}],
-            [(sys.stderr,), {}]])
+    assert [list(c) for c in m_stream.call_args_list] == [
+        [(sys.stdout,), {}],
+        [(sys.stderr,), {}],
+    ]
+
     assert (
         list(loggers[0].setLevel.call_args)
         == [(logging.DEBUG,), {}])
@@ -96,9 +97,10 @@ def test_runner_log(patches):
     assert (
         list(loggers[1].setLevel.call_args)
         == [(logging.WARN,), {}])
-    assert (
-        list(list(c) for c in m_logger.return_value.addHandler.call_args_list)
-        == [[(loggers[0],), {}], [(loggers[1],), {}]])
+    assert [
+        list(c) for c in m_logger.return_value.addHandler.call_args_list
+    ] == [[(loggers[0],), {}], [(loggers[1],), {}]]
+
     assert "log" in run.__dict__
 
 
@@ -251,15 +253,11 @@ def test_bazeladapter_run(patches, run_returns, cwd, raises, args, capture_outpu
 
     call_args = (("--",) + args) if args else args
     bazel_args = ("bazel", "run", "BAZEL RUN") + call_args
-    bazel_kwargs = {}
-    bazel_kwargs["capture_output"] = (
-        True
-        if capture_output is True
-        else False)
-    bazel_kwargs["cwd"] = (
-        cwd
-        if cwd
-        else m_path.return_value)
+    bazel_kwargs = {
+        "capture_output": capture_output is True,
+        "cwd": cwd or m_path.return_value,
+    }
+
     assert (
         list(m_fork.call_args)
         == [(bazel_args,), bazel_kwargs])

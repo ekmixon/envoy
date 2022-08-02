@@ -31,8 +31,7 @@ def to_classname(filename: str) -> str:
         corresponding class name
     """
     classname_tokens = filename.split('/')[-1].replace('.h', '').split('_')
-    classname = "Mock" + ''.join(map(lambda x: x[:1].upper() + x[1:], classname_tokens))
-    return classname
+    return "Mock" + ''.join(map(lambda x: x[:1].upper() + x[1:], classname_tokens))
 
 
 def to_bazelname(filename: str, mockname: str) -> str:
@@ -47,7 +46,7 @@ def to_bazelname(filename: str, mockname: str) -> str:
     Returns:
         corresponding bazel target name
     """
-    bazelname = "//test/mocks/{}:".format(mockname)
+    bazelname = f"//test/mocks/{mockname}:"
     bazelname += filename.split('/')[-1].replace('.h', '') + '_mocks'.format(mockname)
     return bazelname
 
@@ -62,9 +61,8 @@ def get_filenames(mockname: str) -> List[str]:
     Returns:
         List of file name for the headers in test/mock/{mocksname}
     """
-    dir = Path("test/mocks/{}/".format(mockname))
-    filenames = list(map(str, dir.glob('*.h')))
-    return filenames
+    dir = Path(f"test/mocks/{mockname}/")
+    return list(map(str, dir.glob('*.h')))
 
 
 def replace_includes(mockname):
@@ -80,7 +78,7 @@ def replace_includes(mockname):
         bazel_targets = ""
         with test_file.open() as f:
             content = f.read()
-            if '#include "test/mocks/{}/mocks.h"'.format(mockname) in content:
+            if f'#include "test/mocks/{mockname}/mocks.h"' in content:
                 used_mock_header = True
                 replace_includes = ""
                 for classname in classnames:
@@ -91,22 +89,29 @@ def replace_includes(mockname):
                         # the source code only used MockClusterFactory, then the result code will also include
                         # MockCluster since it also shows in the file.
                         # TODO: use clang to analysis class usage instead by simple find and replace
-                        replace_includes += '#include "test/mocks/{}/{}.h"\n'.format(
-                            mockname, to_filename(classname))
-                        bazel_targets += '"{}",'.format(
-                            to_bazelname(to_filename(classname), mockname))
+                        replace_includes += f'#include "test/mocks/{mockname}/{to_filename(classname)}.h"\n'
+
+                        bazel_targets += f'"{to_bazelname(to_filename(classname), mockname)}",'
         if used_mock_header:
             changed_list.append(str(test_file.relative_to(Path('.'))) + '\n')
             with test_file.open(mode='w') as f:
                 f.write(
                     content.replace(
-                        '#include "test/mocks/{}/mocks.h"\n'.format(mockname), replace_includes))
+                        f'#include "test/mocks/{mockname}/mocks.h"\n',
+                        replace_includes,
+                    )
+                )
+
             with (test_file.parent / 'BUILD').open() as f:
                 # write building files
                 content = f.read()
                 split_content = content.split(test_file.name)
                 split_content[1] = split_content[1].replace(
-                    '"//test/mocks/{}:{}_mocks",'.format(mockname, mockname), bazel_targets, 1)
+                    f'"//test/mocks/{mockname}:{mockname}_mocks",',
+                    bazel_targets,
+                    1,
+                )
+
                 content = split_content[0] + test_file.name + split_content[1]
             with (test_file.parent / 'BUILD').open('w') as f:
                 f.write(content)

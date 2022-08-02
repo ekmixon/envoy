@@ -153,14 +153,14 @@ def _get_safe_url(url: str) -> str:
     parts = urlsplit(url)
     if parts.username is None:
         return url
-    else:
-        frags = list(parts)
-        if parts.port:
-            frags[1] = '{}@{}:{}'.format(parts.username, parts.hostname, parts.port)
-        else:
-            frags[1] = '{}@{}'.format(parts.username, parts.hostname)
+    frags = list(parts)
+    frags[1] = (
+        f'{parts.username}@{parts.hostname}:{parts.port}'
+        if parts.port
+        else f'{parts.username}@{parts.hostname}'
+    )
 
-        return urlunsplit(frags)
+    return urlunsplit(frags)
 
 
 def fetch_inventory(app: Sphinx, uri: str, inv: Any) -> Any:
@@ -186,7 +186,7 @@ def fetch_inventory(app: Sphinx, uri: str, inv: Any) -> Any:
             if inv != newinv:
                 logger.info(__('intersphinx inventory has moved: %s -> %s'), inv, newinv)
 
-                if uri in (inv, path.dirname(inv), path.dirname(inv) + '/'):
+                if uri in (inv, path.dirname(inv), f'{path.dirname(inv)}/'):
                     uri = path.dirname(newinv)
         with f:
             try:
@@ -226,7 +226,7 @@ def fetch_inventory_group(
                     return True
         return False
     finally:
-        if failures == []:
+        if not failures:
             pass
         elif len(failures) < len(invs):
             logger.info(__("encountered some issues with some of the inventories,"
@@ -245,11 +245,19 @@ def load_mappings(app: Sphinx) -> None:
     inventories = InventoryAdapter(app.builder.env)
 
     with concurrent.futures.ThreadPoolExecutor() as pool:
-        futures = []
-        for name, (uri, invs) in app.config.intersphinx_mapping.values():
-            futures.append(pool.submit(
-                fetch_inventory_group, name, uri, invs, inventories.cache, app, now
-            ))
+        futures = [
+            pool.submit(
+                fetch_inventory_group,
+                name,
+                uri,
+                invs,
+                inventories.cache,
+                app,
+                now,
+            )
+            for name, (uri, invs) in app.config.intersphinx_mapping.values()
+        ]
+
         updated = [f.result() for f in concurrent.futures.as_completed(futures)]
 
     if any(updated):
@@ -280,9 +288,12 @@ def missing_reference(app: Sphinx, env: BuildEnvironment, node: pending_xref,
     objtypes: List[str] = None
     if node['reftype'] == 'any':
         # we search anything!
-        objtypes = ['%s:%s' % (domain.name, objtype)
-                    for domain in env.domains.values()
-                    for objtype in domain.object_types]
+        objtypes = [
+            f'{domain.name}:{objtype}'
+            for domain in env.domains.values()
+            for objtype in domain.object_types
+        ]
+
         domain = None
     else:
         domain = node.get('refdomain')
@@ -292,7 +303,7 @@ def missing_reference(app: Sphinx, env: BuildEnvironment, node: pending_xref,
         objtypes = env.get_domain(domain).objtypes_for_role(node['reftype'])
         if not objtypes:
             return None
-        objtypes = ['%s:%s' % (domain, objtype) for objtype in objtypes]
+        objtypes = [f'{domain}:{objtype}' for objtype in objtypes]
     if 'std:cmdoption' in objtypes:
         # until Sphinx-1.6, cmdoptions are stored as std:option
         objtypes.append('std:option')
@@ -300,9 +311,7 @@ def missing_reference(app: Sphinx, env: BuildEnvironment, node: pending_xref,
         # Since Sphinx-2.1, properties are stored as py:method
         objtypes.append('py:method')
 
-    # determine the contnode by pending_xref_condition
-    content = find_pending_xref_condition(node, 'resolved')
-    if content:
+    if content := find_pending_xref_condition(node, 'resolved'):
         # resolved condition found.
         contnodes = content.children
         contnode = content.children[0]  # type: ignore
@@ -312,8 +321,9 @@ def missing_reference(app: Sphinx, env: BuildEnvironment, node: pending_xref,
 
     to_try = [(inventories.main_inventory, target)]
     if domain:
-        full_qualified_name = env.get_domain(domain).get_full_qualified_name(node)
-        if full_qualified_name:
+        if full_qualified_name := env.get_domain(
+            domain
+        ).get_full_qualified_name(node):
             to_try.append((inventories.main_inventory, full_qualified_name))
     in_set = None
     if ':' in target:
@@ -324,8 +334,9 @@ def missing_reference(app: Sphinx, env: BuildEnvironment, node: pending_xref,
             to_try.append((inventories.named_inventory[setname], newtarget))
             if domain:
                 node['reftarget'] = newtarget
-                full_qualified_name = env.get_domain(domain).get_full_qualified_name(node)
-                if full_qualified_name:
+                if full_qualified_name := env.get_domain(
+                    domain
+                ).get_full_qualified_name(node):
                     to_try.append((inventories.named_inventory[setname], full_qualified_name))
     elif app.config.intersphinx_strict_prefix:
         return None
@@ -349,7 +360,7 @@ def missing_reference(app: Sphinx, env: BuildEnvironment, node: pending_xref,
                     (domain == 'std' and node['reftype'] == 'keyword'):
                 # use whatever title was given, but strip prefix
                 title = contnode.astext()
-                if in_set and title.startswith(in_set + ':'):
+                if in_set and title.startswith(f'{in_set}:'):
                     newnode.append(contnode.__class__(title[len(in_set) + 1:],
                                                       title[len(in_set) + 1:]))
                 else:
@@ -359,9 +370,13 @@ def missing_reference(app: Sphinx, env: BuildEnvironment, node: pending_xref,
                 newnode.append(contnode.__class__(dispname, dispname))
             return newnode
     # at least get rid of the ':' in the target if no explicit title given
-    if in_set is not None and not node.get('refexplicit', True):
-        if len(contnode) and isinstance(contnode[0], nodes.Text):
-            contnode[0] = nodes.Text(newtarget, contnode[0].rawsource)
+    if (
+        in_set is not None
+        and not node.get('refexplicit', True)
+        and len(contnode)
+        and isinstance(contnode[0], nodes.Text)
+    ):
+        contnode[0] = nodes.Text(newtarget, contnode[0].rawsource)
 
     return None
 
@@ -381,10 +396,12 @@ def normalize_intersphinx_mapping(app: Sphinx, config: Config) -> None:
                 # old format, no name
                 name, uri, inv = None, key, value
 
-            if not isinstance(inv, tuple):
-                config.intersphinx_mapping[key] = (name, (uri, (inv,)))
-            else:
-                config.intersphinx_mapping[key] = (name, (uri, inv))
+            config.intersphinx_mapping[key] = (
+                (name, (uri, inv))
+                if isinstance(inv, tuple)
+                else (name, (uri, (inv,)))
+            )
+
         except Exception as exc:
             logger.warning(__('Failed to read intersphinx_mapping[%s], ignored: %r'), key, exc)
             config.intersphinx_mapping.pop(key)
@@ -407,7 +424,7 @@ def setup(app: Sphinx) -> Dict[str, Any]:
 
 def inspect_main(argv: List[str]) -> None:
     """Debug functionality to print out an inventory"""
-    if len(argv) < 1:
+    if not argv:
         print("Print out an inventory file.\n"
               "Error: must specify local path or URL to an inventory file.",
               file=sys.stderr)

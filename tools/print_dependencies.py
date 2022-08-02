@@ -38,16 +38,15 @@ if __name__ == '__main__':
 
     # Bazel target to print
     target = sys.argv[1]
-    output = subprocess.check_output(['bazel', 'query', 'deps(%s)' % target])
+    output = subprocess.check_output(['bazel', 'query', f'deps({target})'])
 
     repos = set()
 
     # Gather the explicit list of repositories
     repo_regex = re.compile('^@(.*)\/\/')
     for line in output.split('\n'):
-        match = repo_regex.match(line)
-        if match:
-            repos.add(match.group(1))
+        if match := repo_regex.match(line):
+            repos.add(match[1])
 
     deps = filter(lambda dep: dep['identifier'] in repos, deps)
     print_deps(deps)

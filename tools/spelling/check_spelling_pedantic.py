@@ -132,9 +132,7 @@ MARK = False
 
 
 def red(s):
-    if COLOR:
-        return "\33[1;31m" + s + "\033[0m"
-    return s
+    return "\33[1;31m" + s + "\033[0m" if COLOR else s
 
 
 def debug(s):
@@ -174,7 +172,14 @@ class SpellChecker:
             f.writelines(words)
 
         # Start an aspell process.
-        aspell_args = ["aspell", "pipe", "--lang=en_US", "--encoding=utf-8", "--personal=" + pws]
+        aspell_args = [
+            "aspell",
+            "pipe",
+            "--lang=en_US",
+            "--encoding=utf-8",
+            f"--personal={pws}",
+        ]
+
         self.aspell = subprocess.Popen(
             aspell_args,
             bufsize=4096,
@@ -203,7 +208,7 @@ class SpellChecker:
             print("aspell quit unexpectedly: return code %d" % (self.aspell.returncode))
             sys.exit(2)
 
-        debug1("ASPELL< %s" % (line))
+        debug1(f"ASPELL< {line}")
 
         self.aspell.stdin.write(line + os.linesep)
         self.aspell.stdin.flush()
@@ -211,14 +216,14 @@ class SpellChecker:
         errors = []
         while True:
             result = self.aspell.stdout.readline().strip()
-            debug1("ASPELL> %s" % (result))
+            debug1(f"ASPELL> {result}")
 
             # Check for end of results.
             if result == "":
                 break
 
             t = result[0]
-            if t == "*" or t == "-" or t == "+":
+            if t in ["*", "-", "+"]:
                 # *: found in dictionary.
                 # -: found run-together words in dictionary.
                 # +: found root word in dictionary.
@@ -232,7 +237,7 @@ class SpellChecker:
             if t == "#":
                 # Not in dictionary, but no suggestions.
                 errors.append((original, int(rem), []))
-            elif t == '&' or t == '?':
+            elif t in ['&', '?']:
                 # Near misses and/or guesses.
                 _, rem = rem.split(" ", 1)  # Drop N (may be 0).
                 o, rem = rem.split(": ", 1)  # o is offset from start of line.
@@ -240,7 +245,7 @@ class SpellChecker:
 
                 errors.append((original, int(o), suggestions))
             else:
-                print("aspell produced unexpected output: %s" % (result))
+                print(f"aspell produced unexpected output: {result}")
                 sys.exit(2)
 
         return errors
@@ -306,7 +311,7 @@ class SpellChecker:
 def check_camel_case(checker, err):
     (word, word_offset, _) = err
 
-    debug("check camel case %s" % (word))
+    debug(f"check camel case {word}")
     parts = re.findall(CAMEL_CASE, word)
 
     # Word is not camel case: the previous result stands.
@@ -317,9 +322,8 @@ def check_camel_case(checker, err):
     split_errs = []
     part_offset = 0
     for part in parts:
-        debug("  -> part: %s" % (part))
-        split_err = checker.check(part)
-        if split_err:
+        debug(f"  -> part: {part}")
+        if split_err := checker.check(part):
             debug("    -> not found in dictionary")
             split_errs += [(part, word_offset + part_offset, split_err[0][2])]
         part_offset += len(part)
@@ -333,14 +337,14 @@ def check_camel_case(checker, err):
 def check_affix(checker, err):
     (word, word_offset, _) = err
 
-    debug("check affix %s" % (word))
+    debug(f"check affix {word}")
 
     for prefix in checker.prefixes:
-        debug("  -> try %s" % (prefix))
+        debug(f"  -> try {prefix}")
         if word.lower().startswith(prefix.lower()):
             root = word[len(prefix):]
             if root != '':
-                debug("  -> check %s" % (root))
+                debug(f"  -> check {root}")
                 root_err = checker.check(root)
                 if not root_err:
                     debug("  -> ok")
@@ -350,7 +354,7 @@ def check_affix(checker, err):
         if word.lower().endswith(suffix.lower()):
             root = word[:-len(suffix)]
             if root != '':
-                debug("  -> try %s" % (root))
+                debug(f"  -> try {root}")
                 root_err = checker.check(root)
                 if not root_err:
                     debug("  -> ok")
@@ -443,7 +447,7 @@ def check_comment(checker, offset, comment):
 
     # Mask leading punctuation.
     if not comment[0].isalnum():
-        comment = ' ' + comment[1:]
+        comment = f' {comment[1:]}'
 
     errors = checker.check(comment)
 
@@ -465,7 +469,7 @@ def print_error(file, line_offset, lines, errors):
     for (word, offset, suggestions) in reversed(errors):
         line = line[:offset] + red(word) + line[offset + len(word):]
 
-    print("%s%s" % (prefix, line.rstrip()))
+    print(f"{prefix}{line.rstrip()}")
 
     if MARK:
         # Print a caret at the start of each misspelled word.
@@ -478,7 +482,7 @@ def print_error(file, line_offset, lines, errors):
 
 
 def print_fix_options(word, suggestions):
-    print("%s:" % (word))
+    print(f"{word}:")
     print("  a: accept and add to dictionary")
     print("  A: accept and add to dictionary as ALLCAPS (for acronyms)")
     print("  f <word>: replace with the given word without modifying dictionary")
@@ -524,7 +528,7 @@ def fix_error(checker, file, line_offset, lines, errors):
         print_fix_options(word, suggestions)
 
         replacement = ""
-        while replacement == "":
+        while not replacement:
             try:
                 choice = input("> ")
             except EOFError:
@@ -540,7 +544,7 @@ def fix_error(checker, file, line_offset, lines, errors):
             elif choice == "A":
                 replacement = word
                 add = word.upper()
-            elif choice[:1] == "f":
+            elif choice.startswith("f"):
                 replacement = choice[1:].strip()
                 if replacement == "":
                     print(
@@ -549,7 +553,7 @@ def fix_error(checker, file, line_offset, lines, errors):
                     continue
             elif choice == "i":
                 replacement = word
-            elif choice[:1] == "r" or choice[:1] == "R":
+            elif choice[:1] in ["r", "R"]:
                 replacement = choice[1:].strip()
                 if replacement == "":
                     print(
@@ -557,7 +561,7 @@ def fix_error(checker, file, line_offset, lines, errors):
                         (choice))
                     continue
 
-                if choice[:1] == "R":
+                if choice.startswith("R"):
                     if replacement.upper() not in suggestions:
                         add = replacement.upper()
                 elif replacement not in suggestions:
@@ -579,8 +583,9 @@ def fix_error(checker, file, line_offset, lines, errors):
                 additions += [add]
             else:
                 print(
-                    "Cannot add %s to the dictionary: it may only contain letter and apostrophes"
-                    % add)
+                    f"Cannot add {add} to the dictionary: it may only contain letter and apostrophes"
+                )
+
 
     if len(errors) != len(replacements):
         print("Internal error %d errors with %d replacements" % (len(errors), len(replacements)))
@@ -693,17 +698,15 @@ def extract_comments(lines):
             last_line = comments[n].line
             n += 1
 
-            while n < nc:
-                if comments[n].line - last_line > 1:
-                    # Gap in comments. Code block is finished.
-                    break
+            while n < nc and comments[n].line - last_line <= 1:
                 last_line = comments[n].line
 
-                if comments[n].text.strip() != "":
-                    # Blank lines are ignored in code blocks.
-                    if len(INDENT.search(comments[n].text).group(1)) <= indent:
-                        # Back to original indent, or less. The code block is done.
-                        break
+                if (
+                    comments[n].text.strip() != ""
+                    and len(INDENT.search(comments[n].text).group(1)) <= indent
+                ):
+                    # Back to original indent, or less. The code block is done.
+                    break
                 n += 1
         else:
             result.append(comments[n])
@@ -817,9 +820,7 @@ if __name__ == "__main__":
         if not path.startswith('./third_party/') and not path.startswith('./third_party/')
     ]
 
-    exts = ['.cc', '.h', '.proto']
-    if args.test_ignore_exts:
-        exts = None
+    exts = None if args.test_ignore_exts else ['.cc', '.h', '.proto']
     target_paths = []
     for p in paths:
         if os.path.isdir(p):

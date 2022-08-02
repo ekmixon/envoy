@@ -54,7 +54,10 @@ class ProtoFormatVisitor(visitor.Visitor):
         pkg_version_status_exempt = file_proto.name.startswith('envoy/annotations') or empty_file
         # It's a format error not to set package_version_status.
         if existing_pkg_version_status == status_pb2.UNKNOWN and not pkg_version_status_exempt:
-            raise ProtoXformError('package_version_status must be set in %s' % file_proto.name)
+            raise ProtoXformError(
+                f'package_version_status must be set in {file_proto.name}'
+            )
+
         # Only update package_version_status for .active_or_frozen.proto,
         # migrate.version_upgrade_xform has taken care of next major version
         # candidates.

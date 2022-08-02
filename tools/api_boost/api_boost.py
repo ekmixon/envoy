@@ -34,23 +34,28 @@ def prefix_directory(path_prefix):
 
 # Update a C++ file to the latest API.
 def api_boost_file(llvm_include_path, debug_log, path):
-    print('Processing %s' % path)
+    print(f'Processing {path}')
     if 'API_NO_BOOST_FILE' in pathlib.Path(path).read_text():
         if debug_log:
             print('Not boosting %s due to API_NO_BOOST_FILE\n' % path)
         return None
     # Run the booster
     try:
-        result = sp.run([
-            './bazel-bin/external/envoy_dev/clang_tools/api_booster/api_booster',
-            '--extra-arg-before=-xc++',
-            '--extra-arg=-isystem%s' % llvm_include_path, '--extra-arg=-Wno-undefined-internal',
-            '--extra-arg=-Wno-old-style-cast', path
-        ],
-                        capture_output=True,
-                        check=True)
+        result = sp.run(
+            [
+                './bazel-bin/external/envoy_dev/clang_tools/api_booster/api_booster',
+                '--extra-arg-before=-xc++',
+                f'--extra-arg=-isystem{llvm_include_path}',
+                '--extra-arg=-Wno-undefined-internal',
+                '--extra-arg=-Wno-old-style-cast',
+                path,
+            ],
+            capture_output=True,
+            check=True,
+        )
+
     except sp.CalledProcessError as e:
-        print('api_booster failure for %s: %s %s' % (path, e, e.stderr.decode('utf-8')))
+        print(f"api_booster failure for {path}: {e} {e.stderr.decode('utf-8')}")
         raise
     if debug_log:
         print(result.stderr.decode('utf-8'))
@@ -96,12 +101,15 @@ def api_boost_tree(
         build_api_booster=False,
         debug_log=False,
         sequential=False):
-    dep_build_targets = ['//%s/...' % prefix_directory(prefix) for prefix in target_paths]
+    dep_build_targets = [
+        f'//{prefix_directory(prefix)}/...' for prefix in target_paths
+    ]
+
 
     # Optional setup of state. We need the compilation database and api_booster
     # tool in place before we can start boosting.
     if generate_compilation_database:
-        print('Building compilation database for %s' % dep_build_targets)
+        print(f'Building compilation database for {dep_build_targets}')
         sp.run(['./tools/gen_compilation_database.py', '--include_headers'] + dep_build_targets,
                check=True)
 
@@ -112,11 +120,12 @@ def api_boost_tree(
         #
         # Figure out some cc_libraries that cover most of our external deps. This is
         # the same logic as in gen_compilation_database.py.
-        query = 'kind(cc_library, {})'.format(' union '.join(dep_build_targets))
+        query = f"kind(cc_library, {' union '.join(dep_build_targets)})"
         dep_lib_build_targets = sp.check_output(['bazel', 'query', query]).decode().splitlines()
         # We also need some misc. stuff such as test binaries for setup of benchmark
         # dep.
-        query = 'attr("tags", "compilation_db_dep", {})'.format(' union '.join(dep_build_targets))
+        query = f"""attr("tags", "compilation_db_dep", {' union '.join(dep_build_targets)})"""
+
         dep_lib_build_targets.extend(
             sp.check_output(['bazel', 'query', query]).decode().splitlines())
         extra_api_booster_args = []

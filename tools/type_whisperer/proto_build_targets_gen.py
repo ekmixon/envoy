@@ -97,10 +97,7 @@ def deps_format(pkgs):
 
 
 def is_v2_package(pkg):
-    for regex in V2_REGEXES:
-        if regex.match(pkg):
-            return True
-    return False
+    return any(regex.match(pkg) for regex in V2_REGEXES)
 
 
 def accidental_v3_package(pkg):

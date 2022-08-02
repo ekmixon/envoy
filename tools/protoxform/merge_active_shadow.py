@@ -58,7 +58,7 @@ def merge_active_shadow_enum(active_proto, shadow_proto, target_proto, target_pr
     # reintroduce in target_proto.
     del target_proto.reserved_name[:]
     for n in active_proto.reserved_name:
-        hidden_n = 'hidden_envoy_deprecated_' + n
+        hidden_n = f'hidden_envoy_deprecated_{n}'
         if hidden_n in shadow_values:
             v = shadow_values[hidden_n]
             add_deprecation_dependencies(target_proto_dependencies, v, True)
@@ -107,7 +107,7 @@ def merge_active_shadow_message(
     extra_oneof_fields = defaultdict(list)  # oneof index -> list of fields
     del target_proto.reserved_name[:]
     for n in active_proto.reserved_name:
-        hidden_n = 'hidden_envoy_deprecated_' + n
+        hidden_n = f'hidden_envoy_deprecated_{n}'
         if hidden_n in shadow_fields:
             f = shadow_fields[hidden_n]
             add_deprecation_dependencies(target_proto_dependencies, f, False)
@@ -192,7 +192,7 @@ def merge_active_shadow_message(
             enum, shadow_enums.get(enum.name), target_proto.enum_type.add(),
             target_proto_dependencies)
     # Ensure target has any deprecated sub-message types in case they are needed.
-    active_msg_names = set([msg.name for msg in active_proto.nested_type])
+    active_msg_names = {msg.name for msg in active_proto.nested_type}
     for msg in shadow_proto.nested_type:
         if msg.name not in active_msg_names:
             target_proto.nested_type.add().MergeFrom(msg)
@@ -220,7 +220,7 @@ def merge_active_shadow_file(active_file_proto, shadow_file_proto):
             enum, shadow_enums.get(enum.name), target_file_proto.enum_type.add(),
             target_file_proto.dependency)
     # Ensure target has any deprecated message types in case they are needed.
-    active_msg_names = set([msg.name for msg in active_file_proto.message_type])
+    active_msg_names = {msg.name for msg in active_file_proto.message_type}
     for msg in shadow_file_proto.message_type:
         if msg.name not in active_msg_names:
             target_file_proto.message_type.add().MergeFrom(msg)

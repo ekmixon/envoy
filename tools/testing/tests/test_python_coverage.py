@@ -41,10 +41,10 @@ def test_coveragepytest_add_arguments():
     runner = python_coverage.CoverageRunner("path1", "path2", "path3")
     parser = MagicMock()
     runner.add_arguments(parser)
-    assert (
-        list(list(c) for c in parser.add_argument.call_args_list)
-        == [[('cov_data',), {'help': 'Path to coverage data'}],
-            [('cov_html',), {'help': 'Path to coverage html'}]])
+    assert [list(c) for c in parser.add_argument.call_args_list] == [
+        [('cov_data',), {'help': 'Path to coverage data'}],
+        [('cov_html',), {'help': 'Path to coverage html'}],
+    ]
 
 
 @pytest.mark.parametrize("cov_data", ["", "SOMEPATH"])

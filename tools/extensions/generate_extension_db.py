@@ -78,12 +78,14 @@ def get_extension_metadata(target):
     categories = ' '.join(rout[3:])
     if is_missing(security_posture):
         raise ExtensionDbError(
-            'Missing security posture for %s.  Please make sure the target is an envoy_cc_extension and security_posture is set'
-            % target)
+            f'Missing security posture for {target}.  Please make sure the target is an envoy_cc_extension and security_posture is set'
+        )
+
     if is_missing(categories):
         raise ExtensionDbError(
-            'Missing extension category for %s. Please make sure the target is an envoy_cc_extension and category is set'
-            % target)
+            f'Missing extension category for {target}. Please make sure the target is an envoy_cc_extension and category is set'
+        )
+
     # evaluate tuples/lists
     # wrap strings in a list
     categories = (
@@ -103,12 +105,14 @@ if __name__ == '__main__':
         raise SystemExit(
             "Output path must be either specified as arg or with EXTENSION_DB_PATH env var")
 
-    extension_db = {}
     # Include all extensions from source/extensions/extensions_build_config.bzl
     all_extensions = {}
-    all_extensions.update(extensions_build_config.EXTENSIONS)
-    for extension, target in all_extensions.items():
-        extension_db[extension] = get_extension_metadata(target)
+    all_extensions |= extensions_build_config.EXTENSIONS
+    extension_db = {
+        extension: get_extension_metadata(target)
+        for extension, target in all_extensions.items()
+    }
+
     if num_robust_to_downstream_network_filters(extension_db) != num_read_filters_fuzzed():
         raise ExtensionDbError(
             'Check that all network filters robust against untrusted'

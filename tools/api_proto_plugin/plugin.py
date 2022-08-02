@@ -83,12 +83,12 @@ def plugin(output_descriptors):
             ps = pstats.Stats(
                 pr, stream=stats_stream).sort_stats(os.getenv('CPROFILE_SORTBY', 'cumulative'))
             stats_file = response.file.add()
-            stats_file.name = file_proto.name + '.profile'
+            stats_file.name = f'{file_proto.name}.profile'
             ps.print_stats()
             stats_file.content = stats_stream.getvalue()
         # Also include the original FileDescriptorProto as text proto, this is
         # useful when debugging.
         descriptor_file = response.file.add()
-        descriptor_file.name = file_proto.name + ".descriptor.proto"
+        descriptor_file.name = f"{file_proto.name}.descriptor.proto"
         descriptor_file.content = str(file_proto)
     sys.stdout.buffer.write(response.SerializeToString())

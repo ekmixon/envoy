@@ -15,7 +15,8 @@ from google.api import annotations_pb2
 
 ENVOY_API_TYPE_REGEX_STR = 'envoy_api_(msg|enum_value|field|enum)_([\w\.]+)'
 ENVOY_COMMENT_WITH_TYPE_REGEX = re.compile(
-    '<%s>|:ref:`%s`' % (ENVOY_API_TYPE_REGEX_STR, ENVOY_API_TYPE_REGEX_STR))
+    f'<{ENVOY_API_TYPE_REGEX_STR}>|:ref:`{ENVOY_API_TYPE_REGEX_STR}`'
+)
 
 
 class UpgradeVisitor(visitor.Visitor):
@@ -45,12 +46,12 @@ class UpgradeVisitor(visitor.Visitor):
             else:
                 ref_type = section_ref_type
                 normalized_type_name = section_normalized_type_name
-            if ref_type == 'field' or ref_type == 'enum_value':
+            if ref_type in ['field', 'enum_value']:
                 normalized_type_name, residual = normalized_type_name.rsplit('.', 1)
             else:
                 residual = ''
-            type_name = 'envoy.' + normalized_type_name
-            api_v2_type_name = 'envoy.api.v2.' + normalized_type_name
+            type_name = f'envoy.{normalized_type_name}'
+            api_v2_type_name = f'envoy.api.v2.{normalized_type_name}'
             if type_name in self._typedb.types:
                 type_desc = self._typedb.types[type_name]
             else:
@@ -68,12 +69,9 @@ class UpgradeVisitor(visitor.Visitor):
                     residual = 'host_rewrite_literal'
                 elif residual == 'auto_host_rewrite_header':
                     residual = 'auto_host_rewrite'
-            new_ref = 'envoy_api_%s_%s%s' % (
-                ref_type, repl_type, '.' + residual if residual else '')
-            if label_ref_type is not None:
-                return '<%s>' % new_ref
-            else:
-                return ':ref:`%s`' % new_ref
+            new_ref = f"envoy_api_{ref_type}_{repl_type}{f'.{residual}' if residual else ''}"
+
+            return f'<{new_ref}>' if label_ref_type is not None else f':ref:`{new_ref}`'
 
         return re.sub(ENVOY_COMMENT_WITH_TYPE_REGEX, upgrade_type, c)
 
@@ -85,15 +83,15 @@ class UpgradeVisitor(visitor.Visitor):
         if not t.startswith('envoy'):
             return t
         type_desc = self._typedb.types[t]
-        if type_desc.next_version_type_name:
-            return type_desc.next_version_type_name
-        return t
+        return type_desc.next_version_type_name or t
 
     # Upgraded type using internal type naming, e.g. .foo.bar.
     def _upgraded_type(self, t):
-        if not t.startswith('.envoy'):
-            return t
-        return '.' + self._upgraded_type_canonical(t[1:])
+        return (
+            f'.{self._upgraded_type_canonical(t[1:])}'
+            if t.startswith('.envoy')
+            else t
+        )
 
     def _deprecate(self, proto, field_or_value):
         """Deprecate a field or value in a message/enum proto.
@@ -103,7 +101,7 @@ class UpgradeVisitor(visitor.Visitor):
             field_or_value: field or value inside proto.
         """
         if self._envoy_internal_shadow:
-            field_or_value.name = 'hidden_envoy_deprecated_' + field_or_value.name
+            field_or_value.name = f'hidden_envoy_deprecated_{field_or_value.name}'
         else:
             reserved = proto.reserved_range.add()
             reserved.start = field_or_value.number

@@ -27,7 +27,7 @@ def path_and_filename(label):
         return label
     label = label.replace(":", "/")
     splitted_label = label.split('/')
-    return ['/'.join(splitted_label[:len(splitted_label) - 1]), splitted_label[-1]]
+    return ['/'.join(splitted_label[:-1]), splitted_label[-1]]
 
 
 def golden_proto_file(path, filename, version):
@@ -42,7 +42,7 @@ def golden_proto_file(path, filename, version):
         actual golden proto absolute path
     """
     base = "./"
-    base += path + "/" + filename + "." + version + ".gold"
+    base += f"{path}/{filename}.{version}.gold"
     return os.path.abspath(base)
 
 
@@ -53,7 +53,7 @@ def proto_print(src, dst):
         src: source path for FileDescriptorProto.
         dst: destination path for formatted proto.
     """
-    print('proto_print %s -> %s' % (src, dst))
+    print(f'proto_print {src} -> {dst}')
     subprocess.check_call([
         'bazel-bin/tools/protoxform/protoprint', src, dst,
         './bazel-bin/tools/protoxform/protoprint.runfiles/envoy/tools/type_whisperer/api_type_db.pb_text',
@@ -75,7 +75,7 @@ def result_proto_file(cmd, path, tmp, filename, version):
         actual result proto absolute path
     """
     base = "./bazel-bin"
-    base += os.path.join(path, "%s_protos" % cmd)
+    base += os.path.join(path, f"{cmd}_protos")
     base += os.path.join(base, path)
     base += "/{0}.{1}.proto".format(filename, version)
     dst = os.path.join(tmp, filename)
@@ -94,7 +94,7 @@ def diff(result_file, golden_file):
         output and status code
     """
     command = 'diff -u '
-    command += result_file + ' '
+    command += f'{result_file} '
     command += golden_file
     status, stdout, stderr = run_command(command)
     return [status, stdout, stderr]
@@ -141,5 +141,5 @@ if __name__ == "__main__":
         logging.warning("PASS")
         sys.exit(0)
     else:
-        logging.error("FAILED:\n{}".format(messages))
+        logging.error(f"FAILED:\n{messages}")
         sys.exit(1)

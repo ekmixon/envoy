@@ -30,13 +30,13 @@ extensions_build_config = load_module(
     'extensions_build_config', 'source/extensions/extensions_build_config.bzl')
 
 REPOSITORY_LOCATIONS_SPEC = dict(envoy_repository_locations.REPOSITORY_LOCATIONS_SPEC)
-REPOSITORY_LOCATIONS_SPEC.update(api_repository_locations.REPOSITORY_LOCATIONS_SPEC)
+REPOSITORY_LOCATIONS_SPEC |= api_repository_locations.REPOSITORY_LOCATIONS_SPEC
 
 BAZEL_QUERY_EXTERNAL_DEP_RE = re.compile('@(\w+)//')
 EXTENSION_LABEL_RE = re.compile('(//source/extensions/.*):')
 
 # We can safely ignore these as they are from Bazel or internal repository structure.
-IGNORE_DEPS = set([
+IGNORE_DEPS = {
     'envoy',
     'envoy_api',
     'envoy_api_canonical',
@@ -45,7 +45,7 @@ IGNORE_DEPS = set([
     'local_config_cc',
     'remote_coverage_tools',
     'foreign_cc_platform_utils',
-])
+}
 
 
 # Should a dependency be ignored if it's only used in test? Any changes to this
@@ -57,12 +57,7 @@ def test_only_ignore(dep):
     if dep.startswith('raze__'):
         return True
     # Java
-    if dep.startswith('remotejdk'):
-        return True
-    # Python (pip3)
-    if '_pip3' in dep:
-        return True
-    return False
+    return True if dep.startswith('remotejdk') else '_pip3' in dep
 
 
 class DependencyError(Exception):
@@ -82,9 +77,11 @@ class DependencyInfo(object):
     Returns:
       Set of dependency identifiers that match use_category.
     """
-        return set(
-            name for name, metadata in REPOSITORY_LOCATIONS_SPEC.items()
-            if use_category in metadata['use_category'])
+        return {
+            name
+            for name, metadata in REPOSITORY_LOCATIONS_SPEC.items()
+            if use_category in metadata['use_category']
+        }
 
     def get_metadata(self, dependency):
         """Obtain repository metadata for a dependency.
@@ -134,8 +131,7 @@ class BuildGraph(object):
         ext_deps = set()
         implied_untracked_deps = set()
         for d in deps:
-            match = BAZEL_QUERY_EXTERNAL_DEP_RE.match(d)
-            if match:
+            if match := BAZEL_QUERY_EXTERNAL_DEP_RE.match(d):
                 ext_dep = match.group(1)
                 if ext_dep in self._ignore_deps:
                     continue
@@ -200,8 +196,9 @@ class Validator(object):
         source_deps = self._build_graph.query_external_deps('//source/...')
         marginal_test_deps = test_only_deps.difference(source_deps)
         bad_test_deps = marginal_test_deps.difference(expected_test_only_deps)
-        unknown_bad_test_deps = [dep for dep in bad_test_deps if not test_only_ignore(dep)]
-        if len(unknown_bad_test_deps) > 0:
+        if unknown_bad_test_deps := [
+            dep for dep in bad_test_deps if not test_only_ignore(dep)
+        ]:
             raise DependencyError(
                 f'Missing deps in test_only "use_category": {unknown_bad_test_deps}')
 
@@ -277,8 +274,7 @@ class Validator(object):
         marginal_deps = queried_deps.difference(self._queried_core_deps)
         expected_deps = []
         for d in marginal_deps:
-            metadata = self._dep_info.get_metadata(d)
-            if metadata:
+            if metadata := self._dep_info.get_metadata(d):
                 use_category = metadata['use_category']
                 valid_use_category = any(
                     c in use_category
@@ -306,7 +302,7 @@ class Validator(object):
         self.validate_control_plane_deps()
         # Validate the marginal dependencies introduced for each extension.
         for name, target in sorted(build_graph.list_extensions()):
-            target_all = EXTENSION_LABEL_RE.match(target).group(1) + '/...'
+            target_all = f'{EXTENSION_LABEL_RE.match(target).group(1)}/...'
             self.validate_extension_deps(name, target_all)
 
 

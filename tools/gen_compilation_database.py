@@ -33,10 +33,7 @@ def generate_compilation_database(args):
 
 
 def is_header(filename):
-    for ext in (".h", ".hh", ".hpp", ".hxx"):
-        if filename.endswith(ext):
-            return True
-    return False
+    return any(filename.endswith(ext) for ext in (".h", ".hh", ".hpp", ".hxx"))
 
 
 def is_compile_target(target, args):
@@ -44,15 +41,10 @@ def is_compile_target(target, args):
     if not args.include_headers and is_header(filename):
         return False
 
-    if not args.include_genfiles:
-        if filename.startswith("bazel-out/"):
-            return False
+    if not args.include_genfiles and filename.startswith("bazel-out/"):
+        return False
 
-    if not args.include_external:
-        if filename.startswith("external/"):
-            return False
-
-    return True
+    return bool(args.include_external or not filename.startswith("external/"))
 
 
 def modify_compile_command(target, args):
@@ -73,7 +65,7 @@ def modify_compile_command(target, args):
         options += " -Wno-unused-function"
         if not target["file"].startswith("external/"):
             # *.h file is treated as C header by default while our headers files are all C++17.
-            options = "-x c++ -std=c++17 -fexceptions " + options
+            options = f"-x c++ -std=c++17 -fexceptions {options}"
 
     target["command"] = " ".join([cc, options])
     return target

@@ -162,21 +162,27 @@ def extract_definition(cursor: Cursor, classnames: List[str]) -> Tuple[str, str,
     filename = cursor.location.file.name
     contents = read_file_contents(filename)
     class_name = cursor.spelling
-    class_defn = contents[cursor.extent.start.offset:cursor.extent.end.offset] + ";"
+    class_defn = (
+        f"{contents[cursor.extent.start.offset:cursor.extent.end.offset]};"
+    )
+
     # need to know enclosing semantic parents (namespaces)
     # to generate corresponding definitions
     parent_cursor = cursor.semantic_parent
-    while parent_cursor.kind == CursorKind.NAMESPACE:
-        if parent_cursor.spelling == "":
-            break
-        class_defn = "namespace {} {{\n".format(parent_cursor.spelling) + class_defn + "\n}\n"
+    while (
+        parent_cursor.kind == CursorKind.NAMESPACE
+        and parent_cursor.spelling != ""
+    ):
+        class_defn = f"namespace {parent_cursor.spelling} {{\n" + class_defn + "\n}\n"
         parent_cursor = parent_cursor.semantic_parent
     # resolve dependency
     # by simple naming look up
-    deps = set()
-    for classname in classnames:
-        if classname in class_defn and classname != class_name:
-            deps.add(classname)
+    deps = {
+        classname
+        for classname in classnames
+        if classname in class_defn and classname != class_name
+    }
+
     return class_name, class_defn, deps
 
 
@@ -218,7 +224,7 @@ def extract_implementations(impl_cursors: List[Cursor], source_code: str) -> Dic
     Returns:
         classname_to_impl: a dict maps class name to its member methods implementations
     """
-    classname_to_impl = dict()
+    classname_to_impl = {}
     for i, cursor in enumerate(impl_cursors):
         classname = cursor.semantic_parent.spelling
         # get first line of function body
@@ -233,9 +239,10 @@ def extract_implementations(impl_cursors: List[Cursor], source_code: str) -> Dic
             # i is the last method, after removing the lines containing close brackets
             # for namespaces, the rest should be the function body
             offset = 0
-            while implline + offset < len(source_code):
-                if "// namespace" in source_code[implline + offset]:
-                    break
+            while (
+                implline + offset < len(source_code)
+                and "// namespace" not in source_code[implline + offset]
+            ):
                 offset += 1
             impl = "".join(source_code[implline:implline + offset])
         if classname in classname_to_impl:
@@ -275,10 +282,14 @@ def get_enclosing_namespace(defn: Cursor) -> Tuple[str, str]:
     namespace_prefix = ""
     namespace_suffix = ""
     parent_cursor = defn.semantic_parent
-    while parent_cursor.kind == CursorKind.NAMESPACE:
-        if parent_cursor.spelling == "":
-            break
-        namespace_prefix = "namespace {} {{\n".format(parent_cursor.spelling) + namespace_prefix
+    while (
+        parent_cursor.kind == CursorKind.NAMESPACE
+        and parent_cursor.spelling != ""
+    ):
+        namespace_prefix = (
+            f"namespace {parent_cursor.spelling} {{\n" + namespace_prefix
+        )
+
         namespace_suffix += "\n}"
         parent_cursor = parent_cursor.semantic_parent
     namespace_suffix += "\n"
@@ -291,9 +302,9 @@ def read_file_contents(path):
 
 
 def write_file_contents(class_name, class_defn, class_impl):
-    with open("{}.h".format(to_filename(class_name)), "w") as decl_file:
+    with open(f"{to_filename(class_name)}.h", "w") as decl_file:
         decl_file.write(class_defn)
-    with open("{}.cc".format(to_filename(class_name)), "w") as impl_file:
+    with open(f"{to_filename(class_name)}.cc", "w") as impl_file:
         impl_file.write(class_impl)
     # generating bazel build file, need to fill dependency manually
     bazel_text = """
@@ -308,7 +319,7 @@ envoy_cc_mock(
 """.format(to_filename(class_name), to_filename(class_name), to_filename(class_name))
     with open("BUILD", "r+") as bazel_file:
         contents = bazel_file.read()
-        if 'name = "{}_mocks"'.format(to_filename(class_name)) not in contents:
+        if f'name = "{to_filename(class_name)}_mocks"' not in contents:
             bazel_file.write(bazel_text)
 
 
@@ -332,16 +343,16 @@ def main(args):
     for defn in defns:
         # writing {class}.h and {classname}.cc
         class_name, class_defn, deps = extract_definition(defn, classnames)
-        includes = ""
-        for name in deps:
-            includes += '#include "{}.h"\n'.format(to_filename(name))
+        includes = "".join(f'#include "{to_filename(name)}.h"\n' for name in deps)
         class_defn = decl_includes + includes + class_defn
         class_impl = ""
         if class_name not in classname_to_impl:
-            print("Warning: empty class {}".format(class_name))
+            print(f"Warning: empty class {class_name}")
         else:
             impl_include = impl_includes.replace(
-                decl_filename, "{}.h".format(to_filename(class_name)))
+                decl_filename, f"{to_filename(class_name)}.h"
+            )
+
             # we need to enclose methods with namespaces
             namespace_prefix, namespace_suffix = get_enclosing_namespace(defn)
             class_impl = impl_include + namespace_prefix + \

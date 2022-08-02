@@ -31,14 +31,15 @@ class PytestChecker(checker.BazelChecker):
 
     @property
     def pytest_bazel_args(self):
-        return (
-            [f"--cov-collect", self.cov_path]
-            if self.cov_enabled
-            else [])
+        return ["--cov-collect", self.cov_path] if self.cov_enabled else []
 
     @cached_property
     def pytest_targets(self) -> set:
-        return set(target for target in self.bazel.query("tools/...") if ":pytest_" in target)
+        return {
+            target
+            for target in self.bazel.query("tools/...")
+            if ":pytest_" in target
+        }
 
     def add_arguments(self, parser):
         super().add_arguments(parser)

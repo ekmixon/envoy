@@ -59,10 +59,15 @@ def verify_and_print_release_date(dep, github_release_date, metadata_release_dat
 def get_release_date(repo, metadata_version, github_release):
     if github_release.tagged:
         tags = repo.get_tags()
-        for tag in tags:
-            if tag.name == github_release.version:
-                return tag.commit.commit.committer.date
-        return None
+        return next(
+            (
+                tag.commit.commit.committer.date
+                for tag in tags
+                if tag.name == github_release.version
+            ),
+            None,
+        )
+
     else:
         assert (metadata_version == github_release.version)
         commit = repo.get_commit(github_release.version)
@@ -79,8 +84,9 @@ def verify_and_print_release_dates(repository_locations, github_instance):
             print(f'{dep} is not a GitHub repository')
             continue
         repo = github_instance.get_repo(f'{github_release.organization}/{github_release.project}')
-        release_date = get_release_date(repo, metadata['version'], github_release)
-        if release_date:
+        if release_date := get_release_date(
+            repo, metadata['version'], github_release
+        ):
             # Check whether there is a more recent version and warn if necessary.
             verify_and_print_latest_release(dep, repo, github_release.version, release_date)
             # Verify that the release date in metadata and GitHub correspond,
@@ -93,7 +99,7 @@ def verify_and_print_release_dates(repository_locations, github_instance):
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        print('Usage: %s <path to repository_locations.bzl>' % sys.argv[0])
+        print(f'Usage: {sys.argv[0]} <path to repository_locations.bzl>')
         sys.exit(1)
     access_token = os.getenv('GITHUB_TOKEN')
     if not access_token:

@@ -96,9 +96,7 @@ def test_all_pytests_pytest_targets():
             "foo", ":pytest_foo",
             ":notpytest_foo", ":not_foo",
             "bar", "//asdf:pytest_barbaz"]
-        assert (
-            checker.pytest_targets
-            == set([":pytest_foo", "//asdf:pytest_barbaz"]))
+        assert checker.pytest_targets == {":pytest_foo", "//asdf:pytest_barbaz"}
     assert (
         list(m_bazel.return_value.query.call_args)
         == [('tools/...',), {}])
@@ -115,14 +113,22 @@ def test_all_pytests_add_arguments():
     assert (
         list(m_super.call_args)
         == [(parser,), {}])
-    assert (
-        list(list(c) for c in parser.add_argument.call_args_list)
-        == [[('--cov-collect',),
-             {'default': None,
-              'help': 'Specify a path to collect coverage with'}],
-            [('--cov-html',),
-             {'default': None,
-              'help': 'Specify a path to collect html coverage with'}]])
+    assert [list(c) for c in parser.add_argument.call_args_list] == [
+        [
+            ('--cov-collect',),
+            {
+                'default': None,
+                'help': 'Specify a path to collect coverage with',
+            },
+        ],
+        [
+            ('--cov-html',),
+            {
+                'default': None,
+                'help': 'Specify a path to collect html coverage with',
+            },
+        ],
+    ]
 
 
 
@@ -154,26 +160,28 @@ def test_all_pytests_check_pytests(patches):
         m_bazel.return_value.run.side_effect = _run_bazel
         checker.check_pytests()
 
-    assert (
-        list(list(c) for c in m_bazel.return_value.run.call_args_list)
-        == [[('check1',), {}],
-            [('check2',), {}],
-            [('check3',), {}],
-            [('check4',), {}],
-            [('check5',), {}],
-            [('check6',), {}],
-            [('check7',), {}]])
-    assert (
-        list(list(c) for c in m_error.call_args_list)
-        == [[('pytest', ['check3 failed']), {}],
-            [('pytest', ['check4 failed']), {}],
-            [('pytest', ['check6 failed']), {}]])
-    assert (
-        list(list(c) for c in m_succeed.call_args_list)
-        == [[('pytest', ['check1']), {}],
-            [('pytest', ['check2']), {}],
-            [('pytest', ['check5']), {}],
-            [('pytest', ['check7']), {}]])
+    assert [list(c) for c in m_bazel.return_value.run.call_args_list] == [
+        [('check1',), {}],
+        [('check2',), {}],
+        [('check3',), {}],
+        [('check4',), {}],
+        [('check5',), {}],
+        [('check6',), {}],
+        [('check7',), {}],
+    ]
+
+    assert [list(c) for c in m_error.call_args_list] == [
+        [('pytest', ['check3 failed']), {}],
+        [('pytest', ['check4 failed']), {}],
+        [('pytest', ['check6 failed']), {}],
+    ]
+
+    assert [list(c) for c in m_succeed.call_args_list] == [
+        [('pytest', ['check1']), {}],
+        [('pytest', ['check2']), {}],
+        [('pytest', ['check5']), {}],
+        [('pytest', ['check7']), {}],
+    ]
 
 
 @pytest.mark.parametrize("exists", [True, False])

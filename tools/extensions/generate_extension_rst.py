@@ -11,9 +11,9 @@ import subprocess
 
 def format_item(extension, metadata):
     if metadata['undocumented']:
-        item = '* %s' % extension
+        item = f'* {extension}'
     else:
-        item = '* :ref:`%s <extension_%s>`' % (extension, extension)
+        item = f'* :ref:`{extension} <extension_{extension}>`'
     if metadata['status'] == 'alpha':
         item += ' (alpha)'
     return item
@@ -43,7 +43,7 @@ if __name__ == '__main__':
         security_postures[metadata['security_posture']].append(extension)
 
     for sp, extensions in security_postures.items():
-        output_path = pathlib.Path(security_rst_root, 'secpos_%s.rst' % sp)
+        output_path = pathlib.Path(security_rst_root, f'secpos_{sp}.rst')
         content = '\n'.join(
             format_item(extension, extension_db[extension])
             for extension in sorted(extensions)

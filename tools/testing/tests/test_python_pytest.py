@@ -25,10 +25,12 @@ def test_pytest_add_arguments():
     runner = python_pytest.PytestRunner("path1", "path2", "path3")
     parser = MagicMock()
     runner.add_arguments(parser)
-    assert (
-        list(list(c) for c in parser.add_argument.call_args_list)
-        == [[('--cov-collect',),
-             {'default': None, 'help': 'Collect coverage data to path'}]])
+    assert [list(c) for c in parser.add_argument.call_args_list] == [
+        [
+            ('--cov-collect',),
+            {'default': None, 'help': 'Collect coverage data to path'},
+        ]
+    ]
 
 
 def test_pytest_pytest_args(patches):

@@ -27,7 +27,7 @@ class ValidatingCodeBlock(CodeBlock):
     def run(self):
         source, line = self.state_machine.get_source_and_line(self.lineno)
         # built-in directives.unchanged_required option validator produces a confusing error message
-        if self.options.get('type-name') == None:
+        if self.options.get('type-name') is None:
             raise ExtensionError("Expected type name in: {0} line: {1}".format(source, line))
 
         if not ValidatingCodeBlock.skip_validation:

@@ -92,31 +92,39 @@ class CveScanTest(unittest.TestCase):
         cve_scan.parse_cve_json(cve_json, cves, cpe_revmap)
         self.maxDiff = None
         self.assertDictEqual(
-            cves, {
-                'CVE-2020-1234':
-                    cve_scan.Cve(
-                        id='CVE-2020-1234',
-                        description='foo',
-                        cpes=set([self.build_cpe('cpe:2.3:a:foo:bar:1.2.3')]),
-                        score=3.4,
-                        severity='LOW',
-                        published_date=dt.date(2020, 3, 17),
-                        last_modified_date=dt.date(2020, 4, 17)),
-                'CVE-2020-1235':
-                    cve_scan.Cve(
-                        id='CVE-2020-1235',
-                        description='bar',
-                        cpes=set(
-                            map(
-                                self.build_cpe, [
-                                    'cpe:2.3:a:foo:bar:1.2.3', 'cpe:2.3:a:foo:baz:3.2.3',
-                                    'cpe:2.3:a:foo:*:*', 'cpe:2.3:a:wat:bar:1.2.3'
-                                ])),
-                        score=9.9,
-                        severity='HIGH',
-                        published_date=dt.date(2020, 3, 18),
-                        last_modified_date=dt.date(2020, 4, 18))
-            })
+            cves,
+            {
+                'CVE-2020-1234': cve_scan.Cve(
+                    id='CVE-2020-1234',
+                    description='foo',
+                    cpes={self.build_cpe('cpe:2.3:a:foo:bar:1.2.3')},
+                    score=3.4,
+                    severity='LOW',
+                    published_date=dt.date(2020, 3, 17),
+                    last_modified_date=dt.date(2020, 4, 17),
+                ),
+                'CVE-2020-1235': cve_scan.Cve(
+                    id='CVE-2020-1235',
+                    description='bar',
+                    cpes=set(
+                        map(
+                            self.build_cpe,
+                            [
+                                'cpe:2.3:a:foo:bar:1.2.3',
+                                'cpe:2.3:a:foo:baz:3.2.3',
+                                'cpe:2.3:a:foo:*:*',
+                                'cpe:2.3:a:wat:bar:1.2.3',
+                            ],
+                        )
+                    ),
+                    score=9.9,
+                    severity='HIGH',
+                    published_date=dt.date(2020, 3, 18),
+                    last_modified_date=dt.date(2020, 4, 18),
+                ),
+            },
+        )
+
         self.assertDictEqual(
             cpe_revmap, {
                 'cpe:2.3:a:foo:*:*': {'CVE-2020-1234', 'CVE-2020-1235'},
@@ -201,76 +209,96 @@ class CveScanTest(unittest.TestCase):
         self.assertTrue(
             self.cve_match(
                 'CVE-2020-123',
-                set([self.build_cpe('cpe:2.3:a:foo:bar:*')]),
+                {self.build_cpe('cpe:2.3:a:foo:bar:*')},
                 '2020-05-03',
                 'cpe:2.3:a:foo:bar:*',
-                release_date='2020-05-02'))
+                release_date='2020-05-02',
+            )
+        )
+
         self.assertTrue(
             self.cve_match(
                 'CVE-2020-123',
-                set([self.build_cpe('cpe:2.3:a:foo:bar:*')]),
+                {self.build_cpe('cpe:2.3:a:foo:bar:*')},
                 '2020-05-03',
                 'cpe:2.3:a:foo:bar:*',
-                release_date='2020-05-03'))
+                release_date='2020-05-03',
+            )
+        )
+
         # Wildcard version, recently updated
         self.assertFalse(
             self.cve_match(
                 'CVE-2020-123',
-                set([self.build_cpe('cpe:2.3:a:foo:bar:*')]),
+                {self.build_cpe('cpe:2.3:a:foo:bar:*')},
                 '2020-05-03',
                 'cpe:2.3:a:foo:bar:*',
-                release_date='2020-05-04'))
+                release_date='2020-05-04',
+            )
+        )
+
         # Version match
         self.assertTrue(
             self.cve_match(
                 'CVE-2020-123',
-                set([self.build_cpe('cpe:2.3:a:foo:bar:1.2.3')]),
+                {self.build_cpe('cpe:2.3:a:foo:bar:1.2.3')},
                 '2020-05-03',
                 'cpe:2.3:a:foo:bar:*',
-                version='1.2.3'))
+                version='1.2.3',
+            )
+        )
+
         # Version mismatch
         self.assertFalse(
             self.cve_match(
                 'CVE-2020-123',
-                set([self.build_cpe('cpe:2.3:a:foo:bar:1.2.3')]),
+                {self.build_cpe('cpe:2.3:a:foo:bar:1.2.3')},
                 '2020-05-03',
                 'cpe:2.3:a:foo:bar:*',
                 version='1.2.4',
-                release_date='2020-05-02'))
+                release_date='2020-05-02',
+            )
+        )
+
         # Multiple CPEs, match first, don't match later.
         self.assertTrue(
             self.cve_match(
                 'CVE-2020-123',
-                set([
+                {
                     self.build_cpe('cpe:2.3:a:foo:bar:1.2.3'),
-                    self.build_cpe('cpe:2.3:a:foo:baz:3.2.1')
-                ]),
+                    self.build_cpe('cpe:2.3:a:foo:baz:3.2.1'),
+                },
                 '2020-05-03',
                 'cpe:2.3:a:foo:bar:*',
-                version='1.2.3'))
+                version='1.2.3',
+            )
+        )
 
     def test_cve_scan(self):
         cves = {
-            'CVE-2020-1234':
-                self.build_cve(
-                    'CVE-2020-1234',
-                    set([
-                        self.build_cpe('cpe:2.3:a:foo:bar:1.2.3'),
-                        self.build_cpe('cpe:2.3:a:foo:baz:3.2.1')
-                    ]), '2020-05-03'),
-            'CVE-2020-1235':
-                self.build_cve(
-                    'CVE-2020-1235',
-                    set([
-                        self.build_cpe('cpe:2.3:a:foo:bar:1.2.3'),
-                        self.build_cpe('cpe:2.3:a:foo:baz:3.2.1')
-                    ]), '2020-05-03'),
-            'CVE-2020-1236':
-                self.build_cve(
-                    'CVE-2020-1236', set([
-                        self.build_cpe('cpe:2.3:a:foo:wat:1.2.3'),
-                    ]), '2020-05-03'),
+            'CVE-2020-1234': self.build_cve(
+                'CVE-2020-1234',
+                {
+                    self.build_cpe('cpe:2.3:a:foo:bar:1.2.3'),
+                    self.build_cpe('cpe:2.3:a:foo:baz:3.2.1'),
+                },
+                '2020-05-03',
+            ),
+            'CVE-2020-1235': self.build_cve(
+                'CVE-2020-1235',
+                {
+                    self.build_cpe('cpe:2.3:a:foo:bar:1.2.3'),
+                    self.build_cpe('cpe:2.3:a:foo:baz:3.2.1'),
+                },
+                '2020-05-03',
+            ),
+            'CVE-2020-1236': self.build_cve(
+                'CVE-2020-1236',
+                {self.build_cpe('cpe:2.3:a:foo:wat:1.2.3')},
+                '2020-05-03',
+            ),
         }
+
         cpe_revmap = {
             'cpe:2.3:a:foo:*:*': ['CVE-2020-1234', 'CVE-2020-1235', 'CVE-2020-1236'],
         }

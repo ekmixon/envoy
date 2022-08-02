@@ -1,5 +1,6 @@
 """Envoy API annotations."""
 
+
 import re
 
 # Key-value annotation regex.
@@ -30,7 +31,7 @@ NEXT_MAJOR_VERSION_ANNOTATION = 'next-major-version'
 # Comment. Just used for adding text that will not go into the docs at all.
 COMMENT_ANNOTATION = 'comment'
 
-VALID_ANNOTATIONS = set([
+VALID_ANNOTATIONS = {
     DOC_TITLE_ANNOTATION,
     EXTENSION_ANNOTATION,
     EXTENSION_CATEGORY_ANNOTATION,
@@ -38,7 +39,8 @@ VALID_ANNOTATIONS = set([
     NEXT_FREE_FIELD_ANNOTATION,
     NEXT_MAJOR_VERSION_ANNOTATION,
     COMMENT_ANNOTATION,
-])
+}
+
 
 # These can propagate from file scope to message/enum scope (and be overridden).
 INHERITED_ANNOTATIONS = set([
@@ -72,7 +74,7 @@ def extract_annotations(s, inherited_annotations=None):
     for group in groups:
         annotation = group[0]
         if annotation not in VALID_ANNOTATIONS:
-            raise AnnotationError('Unknown annotation: %s' % annotation)
+            raise AnnotationError(f'Unknown annotation: {annotation}')
         annotations[group[0]] = group[1].lstrip()
     return annotations
 
@@ -99,7 +101,7 @@ def xform_annotation(s, annotation_xforms):
         annotation_xform = annotation_xforms.get(annotation)
         if annotation_xform:
             value = annotation_xform(annotation)
-            return '[#%s: %s]%s' % (annotation, value, trailing) if value is not None else ''
+            return f'[#{annotation}: {value}]{trailing}' if value is not None else ''
         else:
             return match.group(0)
 

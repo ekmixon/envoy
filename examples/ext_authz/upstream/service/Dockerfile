@@ -1,4 +1,4 @@
-FROM python:3-alpine
+FROM python:3.13.0a3-alpine
 
 RUN pip3 install -q Flask==0.11.1
 COPY . ./app
